@@ -1,0 +1,258 @@
+openapi: 3.0.3
+info:
+  title: TeamPulse Corporate Wellness & Engagement Platform API
+  version: 1.0.0
+  description: >
+    Unified OpenAPI 3.0 specification for TeamPulse microservices routed via AWS Application Load Balancer (ALB) / Local API Gateway.
+    Includes Identity, Habit, Challenge, Event Tracking, Insight, Recommendation, and Notification microservices.
+servers:
+  - url: http://localhost:8080
+    description: Local Docker Compose API Gateway
+  - url: https://api.teampulse.internal
+    description: Production AWS Application Load Balancer (HTTPS/TLS)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string, example: "usr-101" }
+        name: { type: string, example: "Priya Sharma" }
+        email: { type: string, example: "priya@teampulse.com" }
+        role: { type: string, enum: [EMPLOYEE, MANAGER, ADMIN], example: "EMPLOYEE" }
+        teamId: { type: string, example: "team-eng" }
+    Habit:
+      type: object
+      properties:
+        id: { type: string, example: "hab-101" }
+        userId: { type: string, example: "usr-101" }
+        title: { type: string, example: "Desk Mobility & Hydration Routine" }
+        activityType: { type: string, enum: [FITNESS, MOBILITY, MINDFULNESS, HYDRATION], example: "MOBILITY" }
+        visibility: { type: string, enum: [PRIVATE, TEAM], example: "PRIVATE" }
+        scheduledTime: { type: string, example: "09:00" }
+    Challenge:
+      type: object
+      properties:
+        id: { type: string, example: "chal-1" }
+        title: { type: string, example: "10,000 Steps & Mobility Sprint" }
+        activityType: { type: string, example: "FITNESS" }
+        status: { type: string, enum: [ACTIVE, COMPLETED], example: "ACTIVE" }
+        startDate: { type: string, format: date, example: "2026-11-01" }
+        endDate: { type: string, format: date, example: "2026-11-30" }
+        participantsCount: { type: integer, example: 18 }
+    ActivityEvent:
+      type: object
+      required: [habitId, status]
+      properties:
+        habitId: { type: string, example: "hab-101" }
+        activityType: { type: string, example: "MOBILITY" }
+        status: { type: string, enum: [COMPLETED, DONE, MISSED], example: "COMPLETED" }
+        loggedAt: { type: string, format: date-time, example: "2026-11-17T17:30:00Z" }
+    Recommendation:
+      type: object
+      properties:
+        id: { type: string, example: "rec-101" }
+        userId: { type: string, example: "usr-101" }
+        habitId: { type: string, example: "hab-101" }
+        habitTitle: { type: string, example: "Desk Mobility & Hydration Routine" }
+        currentSlot: { type: string, example: "09:00" }
+        recommendedSlot: { type: string, example: "17:30" }
+        reason: { type: string, example: "You missed 100% of 09:00 logs, but completed 100% of activities between 17:00 and 18:00." }
+        confidenceScore: { type: number, example: 0.92 }
+        status: { type: string, enum: [PENDING, ACCEPTED, DISMISSED], example: "PENDING" }
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [1. Identity Service]
+      summary: Register a new employee or manager
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, role, teamId]
+              properties:
+                name: { type: string, example: "Priya Sharma" }
+                email: { type: string, example: "priya@teampulse.com" }
+                password: { type: string, example: "Password123!" }
+                role: { type: string, enum: [EMPLOYEE, MANAGER, ADMIN], example: "EMPLOYEE" }
+                teamId: { type: string, example: "team-eng" }
+      responses:
+        "201":
+          description: User registered and JWT issued
+
+  /api/auth/login:
+    post:
+      tags: [1. Identity Service]
+      summary: Authenticate employee and issue RBAC JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: "priya@teampulse.com" }
+                password: { type: string, example: "Password123!" }
+      responses:
+        "200":
+          description: JWT token and user profile
+
+  /api/habits:
+    get:
+      tags: [2. Habit Service]
+      summary: Get personal private habits and team-shared wellness goals
+      responses:
+        "200":
+          description: List of habits accessible to the caller
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Habit"
+    post:
+      tags: [2. Habit Service]
+      summary: Create a new personal or team wellness habit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Habit"
+      responses:
+        "201":
+          description: Habit created in Amazon RDS
+
+  /api/habits/{id}:
+    patch:
+      tags: [2. Habit Service]
+      summary: Update habit scheduled time or visibility
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scheduledTime: { type: string, example: "17:30" }
+                visibility: { type: string, enum: [PRIVATE, TEAM] }
+      responses:
+        "200":
+          description: Habit updated
+
+  /api/challenges:
+    get:
+      tags: [3. Challenge Service]
+      summary: List challenges with optional activityType and status filters
+      parameters:
+        - in: query
+          name: activityType
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string, enum: [ACTIVE, COMPLETED] }
+      responses:
+        "200":
+          description: List of team challenges and leaderboard standings
+
+  /api/challenges/{id}/join:
+    post:
+      tags: [3. Challenge Service]
+      summary: Join a team wellness challenge
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Enrolled in challenge
+
+  /api/events/activity:
+    post:
+      tags: [4. Event Tracking Service]
+      summary: Mark an activity as COMPLETED, DONE, or MISSED and publish to EventBridge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityEvent"
+      responses:
+        "201":
+          description: Event persisted in RDS and published to AWS EventBridge
+
+  /api/insights/personal:
+    get:
+      tags: [5. Insight Service]
+      summary: Get personal streak, badges, and completion ring metrics
+      responses:
+        "200":
+          description: Individual wellness analytics
+
+  /api/insights/team/{teamId}:
+    get:
+      tags: [5. Insight Service]
+      summary: Get anonymized, aggregated team trends from DynamoDB (Manager/Admin role)
+      parameters:
+        - in: path
+          name: teamId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Aggregated team analytics without individual PII
+
+  /api/recommendations:
+    get:
+      tags: [6. Recommendation Service]
+      summary: Get personalized activity timing recommendations based on missed vs. completed slots
+      responses:
+        "200":
+          description: List of smart timing recommendations for the authenticated employee
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Recommendation"
+
+  /api/recommendations/{id}/accept:
+    post:
+      tags: [6. Recommendation Service]
+      summary: Accept a timing recommendation and automatically shift the habit schedule
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Recommendation marked ACCEPTED and Habit scheduledTime updated
+
+  /api/notifications:
+    get:
+      tags: [7. Notification Service]
+      summary: Retrieve reminders, badge alerts, and schedule update notifications
+      responses:
+        "200":
+          description: User notification feed

@@ -1,0 +1,103 @@
+{
+  "info": {
+    "name": "TeamPulse Microservices E2E Collection",
+    "_postman_id": "b8f9a210-4c11-4e7a-9d1a-teampulse2026",
+    "description": "End-to-end API requests for TeamPulse (Identity, Habit, Challenge, Event Tracking, Insight, Recommendation, and Notification Services).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "jwtToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Login Employee (Identity Service)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"priya@teampulse.com\",\n  \"password\": \"Password123!\"\n}"
+        }
+      }
+    },
+    {
+      "name": "2. Create Habit at 09:00 AM (Habit Service)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/habits",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Desk Mobility & Hydration Routine\",\n  \"activityType\": \"MOBILITY\",\n  \"visibility\": \"PRIVATE\",\n  \"scheduledTime\": \"09:00\"\n}"
+        }
+      }
+    },
+    {
+      "name": "3. Join Team Challenge (Challenge Service)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+        "url": "{{baseUrl}}/api/challenges/chal-1/join"
+      }
+    },
+    {
+      "name": "4. Log Activity MISSED at 09:00 (Event Tracking Service)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/events/activity",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"habitId\": \"hab-101\",\n  \"activityType\": \"MOBILITY\",\n  \"status\": \"MISSED\",\n  \"loggedAt\": \"2026-11-16T09:00:00Z\"\n}"
+        }
+      }
+    },
+    {
+      "name": "5. Log Activity COMPLETED at 17:30 (Event Tracking Service)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/events/activity",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"habitId\": \"hab-101\",\n  \"activityType\": \"MOBILITY\",\n  \"status\": \"COMPLETED\",\n  \"loggedAt\": \"2026-11-17T17:30:00Z\"\n}"
+        }
+      }
+    },
+    {
+      "name": "6. Get Manager Aggregated Team Insights (Insight Service)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+        "url": "{{baseUrl}}/api/insights/team/team-eng"
+      }
+    },
+    {
+      "name": "7. Get Smart Timing Recommendations (Recommendation Service)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+        "url": "{{baseUrl}}/api/recommendations"
+      }
+    },
+    {
+      "name": "8. Accept Timing Recommendation (Recommendation Service)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+        "url": "{{baseUrl}}/api/recommendations/rec-101/accept"
+      }
+    }
+  ]
+}
