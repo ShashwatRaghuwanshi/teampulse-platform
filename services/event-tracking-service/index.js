@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const { pool, authenticateJWT } = require('./db');
 
@@ -13,11 +13,13 @@ async function seedEvents() {
       id VARCHAR(50) PRIMARY KEY, user_id VARCHAR(50) NOT NULL, team_id VARCHAR(50) NOT NULL,
       habit_id VARCHAR(50) NOT NULL, activity_type VARCHAR(50) NOT NULL, status VARCHAR(30) NOT NULL, logged_at VARCHAR(40) NOT NULL
     );
+    DELETE FROM activity_events WHERE id IN ('evt-1', 'evt-2', 'evt-3', 'evt-4', 'evt-5');
     INSERT INTO activity_events (id, user_id, team_id, habit_id, activity_type, status, logged_at) VALUES
-    ('evt-1', 'usr-101', 'team-eng', 'hab-101', 'MOBILITY', 'MISSED', '2026-11-14T09:00:00Z'),
-    ('evt-2', 'usr-101', 'team-eng', 'hab-101', 'MOBILITY', 'MISSED', '2026-11-15T09:00:00Z'),
-    ('evt-3', 'usr-101', 'team-eng', 'hab-102', 'FITNESS', 'COMPLETED', '2026-11-15T17:30:00Z'),
-    ('evt-4', 'usr-101', 'team-eng', 'hab-101', 'MOBILITY', 'COMPLETED', '2026-11-16T17:35:00Z')
+    ('evt-1', 'usr-101', 'team-eng', 'hab-101', 'MOBILITY', 'MISSED', '2026-11-17T09:00:00Z'),
+    ('evt-2', 'usr-101', 'team-eng', 'hab-102', 'FITNESS', 'COMPLETED', '2026-11-17T17:30:00Z'),
+    ('evt-3', 'usr-101', 'team-eng', 'hab-101', 'MOBILITY', 'MISSED', '2026-11-18T09:00:00Z'),
+    ('evt-4', 'usr-101', 'team-eng', 'hab-102', 'FITNESS', 'COMPLETED', '2026-11-18T17:30:00Z'),
+    ('evt-5', 'usr-101', 'team-eng', 'hab-101', 'MOBILITY', 'COMPLETED', '2026-11-19T17:35:00Z')
     ON CONFLICT (id) DO NOTHING;
   `);
 }
@@ -42,7 +44,6 @@ app.post('/api/events/activity', authenticateJWT, async (req, res) => {
     [id, req.user.userId, req.user.teamId || 'team-eng', habitId, activityType, status, timestamp]
   );
 
-  // Publish domain event to AWS EventBridge / Lambda Worker
   const eventPayload = {
     source: 'teampulse.event-tracking',
     detailType: 'ActivityLogged',

@@ -1,4 +1,4 @@
-﻿<script>
+<script>
   import { auth, API_BASE } from '$lib/state/auth.svelte.js';
 
   let allChallenges = $state([]);
@@ -20,7 +20,7 @@
   );
 
   async function loadChallenges() {
-    const res = await fetch(`${API_BASE}/challenges`);
+    const res = await fetch(`${API_BASE}/challenges`, { headers: auth.getHeaders() });
     const data = await res.json();
     allChallenges = data.challenges || [];
     leaderboard = data.leaderboard || [];
@@ -71,7 +71,15 @@
           <p style="font-size: 0.82rem; color: var(--tp-text-secondary);">
             {ch.startDate} to {ch.endDate} • {ch.participantsCount} Participants
           </p>
-          <button class="btn" style="margin-top: 0.85rem;" onclick={() => joinChallenge(ch.id)}>Join Challenge</button>
+          {#if ch.joined}
+            <button class="btn" style="margin-top: 0.85rem; background: #cbd5e1; color: #334155; cursor: default;" disabled>
+              Joined ✓
+            </button>
+          {:else}
+            <button class="btn" style="margin-top: 0.85rem;" onclick={() => joinChallenge(ch.id)}>
+              Join Challenge
+            </button>
+          {/if}
         </div>
       {/each}
     </div>

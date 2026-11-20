@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const { pool, authenticateJWT } = require('./db');
 
@@ -11,6 +11,11 @@ async function seedChallenges() {
     CREATE TABLE IF NOT EXISTS challenges (
       id VARCHAR(50) PRIMARY KEY, title VARCHAR(150) NOT NULL, activity_type VARCHAR(50) NOT NULL,
       status VARCHAR(30) NOT NULL, start_date VARCHAR(20) NOT NULL, end_date VARCHAR(20) NOT NULL, participants_count INT DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS challenge_participants (
+      challenge_id VARCHAR(50) NOT NULL,
+      user_id VARCHAR(50) NOT NULL,
+      PRIMARY KEY (challenge_id, user_id)
     );
     CREATE TABLE IF NOT EXISTS leaderboard (
       id VARCHAR(50) PRIMARY KEY, challenge_id VARCHAR(50) NOT NULL, team_name VARCHAR(100) NOT NULL,
@@ -33,14 +38,25 @@ async function seedChallenges() {
 
 app.get('/health', (req, res) => res.json({ service: 'challenge-service', status: 'UP' }));
 
-app.get('/api/challenges', async (req, res) => {
+app.get('/api/challenges', authenticateJWT, async (req, res) => {
   const challenges = await pool.query(
     'SELECT id, title, activity_type as "activityType", status, start_date as "startDate", end_date as "endDate", participants_count as "participantsCount" FROM challenges ORDER BY id ASC'
   );
+  const joinedRows = await pool.query(
+    'SELECT challenge_id FROM challenge_participants WHERE user_id = $1',
+    [req.user.userId]
+  );
+  const joinedSet = new Set(joinedRows.rows.map((r) => r.challenge_id));
+
+  const enrichedChallenges = challenges.rows.map((c) => ({
+    ...c,
+    joined: joinedSet.has(c.id)
+  }));
+
   const leaderboard = await pool.query(
     'SELECT id, challenge_id as "challengeId", team_name as "teamName", member_name as "memberName", points, streak, badge FROM leaderboard ORDER BY points DESC'
   );
-  res.json({ challenges: challenges.rows, leaderboard: leaderboard.rows });
+  res.json({ challenges: enrichedChallenges, leaderboard: leaderboard.rows });
 });
 
 app.post('/api/challenges', authenticateJWT, async (req, res) => {
@@ -54,8 +70,14 @@ app.post('/api/challenges', authenticateJWT, async (req, res) => {
 });
 
 app.post('/api/challenges/:id/join', authenticateJWT, async (req, res) => {
-  await pool.query('UPDATE challenges SET participants_count = participants_count + 1 WHERE id = $1', [req.params.id]);
-  res.json({ message: 'Joined challenge successfully', challengeId: req.params.id });
+  const insertRes = await pool.query(
+    'INSERT INTO challenge_participants (challenge_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+    [req.params.id, req.user.userId]
+  );
+  if (insertRes.rowCount > 0) {
+    await pool.query('UPDATE challenges SET participants_count = participants_count + 1 WHERE id = $1', [req.params.id]);
+  }
+  res.json({ message: 'Joined challenge successfully', challengeId: req.params.id, joined: true });
 });
 
 seedChallenges().then(() => app.listen(PORT, () => console.log(`[challenge-service] Running on ${PORT}`)));

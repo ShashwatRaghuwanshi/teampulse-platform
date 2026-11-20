@@ -1,4 +1,4 @@
-﻿<script>
+<script>
   import { auth, API_BASE } from '$lib/state/auth.svelte.js';
 
   let habits = $state([]);
@@ -85,7 +85,6 @@
           </div>
           <div style="display: flex; gap: 0.5rem;">
             <button class="btn btn-success" onclick={() => logActivity(h, 'COMPLETED')}>Mark Completed</button>
-            <button class="btn btn-outline" onclick={() => logActivity(h, 'DONE')}>Mark Done</button>
             <button class="btn btn-danger" onclick={() => logActivity(h, 'MISSED')}>Mark Missed</button>
           </div>
         </div>
