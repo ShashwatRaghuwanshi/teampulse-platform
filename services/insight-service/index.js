@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const { pool, authenticateJWT } = require('./db');
 
@@ -25,15 +25,18 @@ async function seedInsights() {
 app.get('/health', (req, res) => res.json({ service: 'insight-service', status: 'UP' }));
 
 app.get('/api/insights/personal', authenticateJWT, async (req, res) => {
+  if (req.user.role === 'MANAGER') {
+    return res.status(403).json({ error: 'Privacy Guard: Managers can only access /api/insights/team/:teamId' });
+  }
   const events = await pool.query('SELECT status FROM activity_events WHERE user_id = $1', [req.user.userId]);
-  const total = events.rows.length || 1;
+  const total = events.rows.length;
   const completed = events.rows.filter((e) => e.status === 'COMPLETED' || e.status === 'DONE').length;
   const missed = events.rows.filter((e) => e.status === 'MISSED').length;
-  const lb = await pool.query('SELECT points, streak, badge FROM leaderboard WHERE member_name = $1 LIMIT 1', [req.user.name || 'Priya Sharma']);
-  const stats = lb.rows[0] || { points: 420, streak: 4, badge: 'Consistency Starter' };
+  const lb = await pool.query('SELECT points, streak, badge FROM leaderboard WHERE member_name = $1 LIMIT 1', [req.user.name]);
+  const stats = lb.rows[0] || { points: 0, streak: 0, badge: 'Newcomer' };
 
   res.json({
-    completionRate: Math.round((completed / total) * 100),
+    completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
     completedCount: completed,
     missedCount: missed,
     currentStreak: stats.streak,
@@ -42,7 +45,6 @@ app.get('/api/insights/personal', authenticateJWT, async (req, res) => {
   });
 });
 
-// Manager Privacy Boundary: Returns ONLY Aggregated Team Trends (Zero Personal Habit PII)
 app.get('/api/insights/team/:teamId', authenticateJWT, async (req, res) => {
   const trends = await pool.query(
     'SELECT date_label as "label", completion_rate as "completionRate", active_members as "activeMembers", total_points as "totalPoints" FROM team_analytics_ddb WHERE team_id = $1 ORDER BY id ASC',

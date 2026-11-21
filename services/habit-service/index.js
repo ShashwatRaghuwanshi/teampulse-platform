@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const { pool, authenticateJWT } = require('./db');
 
@@ -23,6 +23,9 @@ async function seedHabits() {
 app.get('/health', (req, res) => res.json({ service: 'habit-service', status: 'UP' }));
 
 app.get('/api/habits', authenticateJWT, async (req, res) => {
+  if (req.user.role === 'MANAGER') {
+    return res.status(403).json({ error: 'Access Denied: Managers cannot view individual employee habits.' });
+  }
   const result = await pool.query(
     `SELECT id, user_id as "userId", title, activity_type as "activityType", visibility, scheduled_time as "scheduledTime"
      FROM habits WHERE user_id = $1 OR visibility = 'TEAM' ORDER BY id ASC`,
@@ -32,6 +35,9 @@ app.get('/api/habits', authenticateJWT, async (req, res) => {
 });
 
 app.post('/api/habits', authenticateJWT, async (req, res) => {
+  if (req.user.role === 'MANAGER') {
+    return res.status(403).json({ error: 'Access Denied: Managers cannot create personal habits.' });
+  }
   const { title, activityType = 'MOBILITY', visibility = 'PRIVATE', scheduledTime = '09:00' } = req.body;
   const id = 'hab-' + Date.now();
   await pool.query(

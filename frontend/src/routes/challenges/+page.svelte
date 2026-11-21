@@ -7,6 +7,7 @@
   let activityType = $state('ALL');
   let statusFilter = $state('ALL');
   let startDate = $state('2026-01-01');
+  let endDate = $state('2026-12-31');
   let joinMsg = $state('');
 
   let filteredChallenges = $derived(
@@ -14,8 +15,8 @@
       const matchQuery = c.title.toLowerCase().includes(searchQuery.toLowerCase());
       const matchType = activityType === 'ALL' || c.activityType === activityType;
       const matchStatus = statusFilter === 'ALL' || c.status === statusFilter;
-      const matchDate = c.startDate >= startDate;
-      return matchQuery && matchType && matchStatus && matchDate;
+      const matchDateRange = c.startDate >= startDate && c.endDate <= endDate;
+      return matchQuery && matchType && matchStatus && matchDateRange;
     })
   );
 
@@ -40,7 +41,7 @@
 <div style="display: grid; gap: 1.5rem;">
   <div class="card">
     <h2>Team Wellness Challenges</h2>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-top: 1rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-top: 1rem;">
       <input placeholder="Search challenges..." bind:value={searchQuery} style="padding: 0.5rem;" />
       <select bind:value={activityType} style="padding: 0.5rem;">
         <option value="ALL">All Activity Types</option>
@@ -53,7 +54,8 @@
         <option value="ACTIVE">ACTIVE</option>
         <option value="COMPLETED">COMPLETED</option>
       </select>
-      <input type="date" bind:value={startDate} style="padding: 0.5rem;" />
+      <input type="date" title="From Date" bind:value={startDate} style="padding: 0.5rem;" />
+      <input type="date" title="To Date" bind:value={endDate} style="padding: 0.5rem;" />
     </div>
 
     {#if joinMsg}

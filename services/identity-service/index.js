@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const { pool, jwt, JWT_SECRET } = require('./db');
 
@@ -24,11 +24,25 @@ app.get('/health', (req, res) => res.json({ service: 'identity-service', status:
 
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password, role = 'EMPLOYEE', teamId = 'team-eng' } = req.body;
+  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password are required' });
+
+  const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+  if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered' });
+
   const id = 'usr-' + Date.now();
   await pool.query(
-    'INSERT INTO users (id, name, email, password, role, team_id) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (email) DO NOTHING',
+    'INSERT INTO users (id, name, email, password, role, team_id) VALUES ($1,$2,$3,$4,$5,$6)',
     [id, name, email, password, role, teamId]
   );
+
+  if (role === 'EMPLOYEE') {
+    await pool.query(
+      `INSERT INTO leaderboard (id, challenge_id, team_name, member_name, points, streak, badge)
+       VALUES ($1, 'chal-1', $2, $3, 0, 0, 'Newcomer') ON CONFLICT DO NOTHING`,
+      ['lb-' + Date.now(), teamId, name]
+    );
+  }
+
   const token = jwt.sign({ userId: id, name, email, role, teamId }, JWT_SECRET, { expiresIn: '12h' });
   res.status(201).json({ token, user: { id, name, email, role, teamId } });
 });
